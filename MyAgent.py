@@ -147,8 +147,8 @@ class MyAgent(AgentBase):
         stop_line = float(self.agent_params.get('stop_line_x', x_offset))
         px = float(self.state.estimated_state[0]); vx = float(self.state.estimated_state[2])
         S =(stop_line - px) * vx
-        
-        if not (S > -1e-3) and (T >= T_min) and (T < H - 1e-3):
+
+        if not (S > -1e-3 and (T >= T_min) and (T < H - 1e-3)):
             self._cnt_gate_ng += 1
             if LOG and (self._frame % self._log_every == 0):
                 print(f"[GATE] block S={S:.4f}  T={T:.2f}  T_min={T_min:.2f}  H={H:.2f}")
@@ -199,7 +199,7 @@ class MyAgent(AgentBase):
         # ベジエ→最適化
         start_xy = self.state.x_cmd[:2].astype(np.float32)
         start_v = self.state.v_cmd[:2].astype(np.float32)
-        for bo in [0.02, 0.04]:
+        for bo in [0.015, 0.03, 0.05]:
             hit_pos_2d = puck - dir_vec * (float(self.env_info["mallet"]["radius"]) + bo)
             cart = self._build_bezier(start_xy, start_v, hit_pos_2d, hit_vel_2d, T_plan)
             traj = self._optimize_joint_traj(cart)
@@ -232,13 +232,13 @@ class MyAgent(AgentBase):
                 cart = self._build_bezier(start_xy, start_v, goal_xy2, np.zeros(2, dtype=np.float32), 0.8)
 
         traj = self._optimize_joint_traj(cart)
-        if LOG:
-            if cart is None or not hasattr(cart, "size") or cart.size == 0:
-                print("[MyAgent] PLAN=FB(empty:unopt)")
-            else:
-                p = cart[:, 0:2]
-                print(f"[MyAgent] FB Δ={np.linalg.norm(p[-1]-p[0]):.6f}, len={cart.shape[0]}")
-            print(f"[MyAgent] FB traj_len: {0 if not traj else len(traj)}")
+        # if LOG:
+        #     if cart is None or not hasattr(cart, "size") or cart.size == 0:
+        #         print("[MyAgent] PLAN=FB(empty:unopt)")
+        #     else:
+        #         p = cart[:, 0:2]
+        #         print(f"[MyAgent] FB Δ={np.linalg.norm(p[-1]-p[0]):.6f}, len={cart.shape[0]}")
+        #     print(f"[MyAgent] FB traj_len: {0 if not traj else len(traj)}")
         return traj
     
     def _build_policy_obs(self) -> np.ndarray:
@@ -306,7 +306,6 @@ class MyAgent(AgentBase):
             traj = self._try_sac_plan(observation)
             if traj:
                 self.state.trajectory_buffer = traj
-                self._cnt_sac += 1
 
         # 2) だめならフォールバック・ベジエ
         if len(self.state.trajectory_buffer) == 0:
@@ -317,7 +316,7 @@ class MyAgent(AgentBase):
 
         # 3) それでも空ならBaselineに丸投げ（必ず動く）
         if len(self.state.trajectory_buffer) == 0:
-            if LOG: print("[MyAgent] PLAN=BASELINE")
+            # if LOG: print("[MyAgent] PLAN=BASELINE")
             self._cnt_base += 1
             return self.baseline.draw_action(observation)
 
